@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Shop Monitor - Stock Management</title>
+   <link rel="icon" href="favicon.ico" type="image/x-icon">
+   <script src="https://cdn.tailwindcss.com"></script>
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+   <style>
+      /* Custom Styles */
+      body {
+         font-family: 'Inter', sans-serif;
+      }
+
+      .nav-link.active {
+         background-color: #1d4ed8;
+         /* Darker blue for active */
+         color: white;
+      }
+
+      .nav-link {
+         transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+      }
+
+      /* Custom Modal Styles */
+      .modal-overlay {
+         position: fixed;
+         top: 0;
+         left: 0;
+         right: 0;
+         bottom: 0;
+         background-color: rgba(0, 0, 0, 0.5);
+         display: flex;
+         justify-content: center;
+         align-items: center;
+         z-index: 1000;
+         opacity: 0;
+         visibility: hidden;
+         transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+
+      .modal-overlay.visible {
+         opacity: 1;
+         visibility: visible;
+      }
+
+      .modal-content {
+         background-color: white;
+         padding: 2rem;
+         border-radius: 0.5rem;
+         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+         width: 90%;
+         max-width: 500px;
+         transform: scale(0.95);
+         transition: transform 0.3s ease;
+      }
+
+      .modal-overlay.visible .modal-content {
+         transform: scale(1);
+      }
+
+      #custom-modal {
+         z-index: 1010;
+         /* Ensure confirmation modal is on top */
+      }
+
+      #edit-stock-modal .modal-content {
+         max-width: 650px;
+         /* Wider modal for edit form */
+      }
+
+      #adjust-stock-modal .modal-content {
+         max-width: 550px;
+         /* Slightly wider for adjust form */
+      }
+
+      /* Undo Area Styling */
+      #undo-area {
+         background-color: #e0f2fe;
+         /* Light blue */
+         color: #0c4a6e;
+         /* Dark blue text */
+         padding: 0.75rem 1rem;
+         border-radius: 0.375rem;
+         border: 1px solid #7dd3fc;
+         /* Lighter blue border */
+         display: flex;
+         justify-content: space-between;
+         align-items: center;
+         opacity: 1;
+         transition: opacity 0.5s ease-out;
+         margin-bottom: 1rem;
+      }
+
+      #undo-area.hidden {
+         opacity: 0;
+         height: 0;
+         padding-top: 0;
+         padding-bottom: 0;
+         margin-bottom: 0;
+         overflow: hidden;
+         transition: opacity 0.5s ease-out, height 0.3s ease-out, padding 0.3s ease-out, margin 0.3s ease-out;
+      }
+
+      #undo-area .undo-button {
+         background-color: #38bdf8;
+         /* Sky blue */
+         color: white;
+         padding: 0.25rem 0.75rem;
+         border-radius: 0.375rem;
+         border: none;
+         cursor: pointer;
+         font-weight: 500;
+         transition: background-color 0.2s ease;
+      }
+
+      #undo-area .undo-button:hover {
+         background-color: #0ea5e9;
+         /* Darker sky blue */
+      }
+
+      /* Text Highlighting classes */
+      .text-highlight-red {
+         color: #dc2626;
+         /* Red-600 */
+         font-weight: 600;
+      }
+
+      .text-highlight-yellow {
+         color: #d97706;
+         /* Amber-600 */
+      }
+
+      /* Disabled Row Style */
+      .row-disabled td {
+         color: #9ca3af !important;
+         /* Gray-400 */
+      }
+
+      .row-disabled .stock-level-bar {
+         background-color: #9ca3af !important;
+         /* Gray-400 */
+         width: 0% !important;
+         /* No bar for disabled */
+      }
+
+      /* Prevent hover effect on disabled rows */
+      tbody tr.row-disabled:hover {
+         background-color: #ffffff;
+         /* White */
+      }
+
+      /* Normal row hover */
+      tbody tr:hover:not(.row-disabled) {
+         background-color: #f9fafb;
+         /* Gray-50 */
+      }
+
+      /* Sorting Header Styles */
+      .sortable-header {
+         cursor: pointer;
+         user-select: none;
+         /* Prevent text selection */
+      }
+
+      .sortable-header:hover {
+         background-color: #f3f4f6;
+         /* Gray-100 */
+      }
+
+      .sort-icon {
+         display: inline-block;
+         width: 1em;
+         /* Ensure space for icon */
+         margin-left: 0.3em;
+         opacity: 0.4;
+         transition: opacity 0.2s ease;
+      }
+
+      .sortable-header.sort-asc .sort-icon,
+      .sortable-header.sort-desc .sort-icon {
+         opacity: 1;
+         /* Make icon visible when active */
+      }
+
+      /* Pagination Styles */
+      .pagination-controls {
+         display: flex;
+         justify-content: space-between;
+         align-items: center;
+         margin-top: 1rem;
+         padding-top: 0.75rem;
+         border-top: 1px solid #e5e7eb;
+         /* Gray-200 */
+      }
+
+      .pagination-button {
+         padding: 0.5rem 1rem;
+         border: 1px solid #d1d5db;
+         /* Gray-300 */
+         background-color: white;
+         color: #374151;
+         /* Gray-700 */
+         border-radius: 0.375rem;
+         cursor: pointer;
+         transition: background-color 0.2s ease;
+      }
+
+      .pagination-button:hover:not(:disabled) {
+         background-color: #f9fafb;
+         /* Gray-50 */
+      }
+
+      .pagination-button:disabled {
+         opacity: 0.5;
+         cursor: not-allowed;
+      }
+
+      .page-info {
+         font-size: 0.875rem;
+         /* text-sm */
+         color: #6b7280;
+         /* Gray-500 */
+      }
+
+      /* Visual Stock Indicator Styles */
+      .stock-indicator-container {
+         display: inline-flex;
+         align-items: center;
+         width: 100%;
+         /* Take full cell width */
+         justify-content: flex-end;
+         /* Align to the right */
+      }
+
+      .stock-level-bar-bg {
+         width: 60px;
+         /* Fixed width for the bar background */
+         height: 8px;
+         background-color: #e5e7eb;
+         /* Gray-200 */
+         border-radius: 4px;
+         overflow: hidden;
+         margin-left: 8px;
+         /* Space between number and bar */
+         display: inline-block;
+         /* Allow margin */
+      }
+
+      .stock-level-bar {
+         height: 100%;
+         border-radius: 4px;
+         transition: width 0.3s ease;
+      }
+
+      .stock-level-low {
+         background-color: #dc2626;
+         /* Red-600 */
+      }
+
+      .stock-level-medium {
+         background-color: #d97706;
+         /* Amber-600 */
+      }
+
+      .stock-level-high {
+         background-color: #16a34a;
+         /* Green-600 */
+      }
+
+      /* Summary Box Styles */
+      .summary-box {
+         display: grid;
+         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+         gap: 1rem;
+         margin-bottom: 1.5rem;
+         padding: 1rem;
+         background-color: #f9fafb;
+         /* Gray-50 */
+         border: 1px solid #e5e7eb;
+         /* Gray-200 */
+         border-radius: 0.5rem;
+      }
+
+      .summary-item {
+         padding: 0.75rem;
+         border-radius: 0.375rem;
+         text-align: center;
+      }
+
+      .summary-item-red {
+         background-color: #fee2e2;
+         color: #991b1b;
+      }
+
+      /* Red-100 bg, Red-900 text */
+      .summary-item-yellow {
+         background-color: #fef9c3;
+         color: #854d0e;
+      }
+
+      /* Yellow-100 bg, Yellow-900 text */
+      .summary-item-blue {
+         background-color: #dbeafe;
+         color: #1e40af;
+      }
+
+      /* Blue-100 bg, Blue-800 text */
+      .summary-value {
+         font-size: 1.5rem;
+         /* text-2xl */
+         font-weight: 600;
+         display: block;
+      }
+
+      .summary-label {
+         font-size: 0.875rem;
+         /* text-sm */
+         font-weight: 500;
+      }
+
+      /* Autocomplete Suggestion Box */
+      .autocomplete-suggestions {
+         position: absolute;
+         border: 1px solid #d1d5db;
+         /* Gray-300 */
+         background-color: white;
+         max-height: 150px;
+         overflow-y: auto;
+         z-index: 999;
+         width: 100%;
+         /* Make it full width of the input container */
+         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+         border-radius: 0.375rem;
+         margin-top: 2px;
+         /* Small gap below input */
+      }
+
+      .suggestion-item {
+         padding: 0.5rem 0.75rem;
+         cursor: pointer;
+         font-size: 0.875rem;
+         /* text-sm */
+      }
+
+      .suggestion-item:hover {
+         background-color: #eff6ff;
+         /* Blue-50 */
+      }
+
+      .suggestion-item.active {
+         /* For keyboard navigation */
+         background-color: #dbeafe;
+         /* Blue-100 */
+      }
+   </style>
+</head>
+
+<body class="bg-gray-100">
+   <div class="flex h-screen bg-gray-100">
+      <aside class="w-64 bg-blue-800 text-white flex flex-col fixed h-full shadow-lg rounded-r-lg">
+         <div class="p-6 border-b border-blue-700">
+            <h1 class="text-2xl font-semibold text-center">Shop Monitor</h1>
+         </div>
+         <nav class="flex-1 p-4 space-y-2">
+            <a href="index.html" id="nav-dashboard"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700">
+               <i class="fas fa-tachometer-alt w-6 mr-3 text-center"></i> <span>Dashboard</span>
+            </a>
+            <a href="income.html" id="nav-income"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700">
+               <i class="fas fa-arrow-up-right-dots w-6 mr-3 text-center"></i> <span>Income / Sales</span>
+            </a>
+            <a href="expenses.html" id="nav-expenses"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700">
+               <i class="fas fa-receipt w-6 mr-3 text-center"></i> <span>Expenses</span>
+            </a>
+            <a href="stock.html" id="nav-stock"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700 active"> <i
+                  class="fas fa-boxes-stacked w-6 mr-3 text-center"></i> <span>Stock Management</span>
+            </a>
+            <a href="reports.html" id="nav-reports"
+               class="nav-link flex items-center px-4 py-3 rounded-lg hover:bg-blue-700">
+               <i class="fas fa-chart-pie w-6 mr-3 text-center"></i> <span>Reports</span>
+            </a>
+         </nav>
+         <div class="p-4 border-t border-blue-700">
+            <button id="save-backup-button"
+               class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition duration-150 ease-in-out">
+               <i class="fas fa-save mr-2"></i> Save & Backup
+            </button>
+         </div>
+      </aside>
+
+      <main class="flex-1 ml-64 p-8 overflow-y-auto">
+         <h2 id="page-title" class="text-3xl font-bold mb-6 text-gray-800">Stock Management</h2>
+         <div id="content-area" class="bg-white p-6 rounded-lg shadow-md min-h-[calc(100vh-150px)]">
+            <h3 class="text-xl font-semibold mb-4">Manage Stock Items</h3>
+            <div id="stock-summary-box" class="summary-box">
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg shadow mb-6">
+               <h4 class="text-lg font-medium mb-3">Add/Update Stock Batch</h4>
+               <form id="stock-form" class="space-y-4">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div class="relative"> <label for="stock-name" class="block text-sm font-medium text-gray-700">Item
+                           Name</label>
+                        <input type="text" id="stock-name" name="stock-name" autocomplete="off" required
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <div id="item-name-suggestions" class="autocomplete-suggestions hidden"></div>
+                     </div>
+                     <div>
+                        <label for="stock-unit" class="block text-sm font-medium text-gray-700">Unit</label>
+                        <select id="stock-unit" name="stock-unit" required
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                           <option value="kg">kg</option>
+                           <option value="piece">piece</option>
+                           <option value="pack">pack</option>
+                           <option value="litre">litre</option>
+                           <option value="bottle">bottle</option>
+                           <option value="Tin">Tin</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label for="stock-quantity" class="block text-sm font-medium text-gray-700">Quantity
+                           Added</label>
+                        <input type="number" id="stock-quantity" name="stock-quantity" step="any" min="0" required
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                           placeholder="e.g., 5 or 1.5">
+                     </div>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div>
+                        <label for="stock-price" class="block text-sm font-medium text-gray-700">Purchase Price (per
+                           Unit)</label>
+                        <input type="number" id="stock-price" name="stock-price" step="0.01" min="0" required
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                           placeholder="e.g., 10.50">
+                     </div>
+                     <div>
+                        <label for="stock-date-bought" class="block text-sm font-medium text-gray-700">Date
+                           Bought</label>
+                        <input type="date" id="stock-date-bought" name="stock-date-bought" required
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                     </div>
+                     <div>
+                        <label for="stock-expiry-date" class="block text-sm font-medium text-gray-700">Expiry
+                           Date</label>
+                        <input type="date" id="stock-expiry-date" name="stock-expiry-date"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                     </div>
+                  </div>
+                  <div class="flex justify-end">
+                     <button type="submit"
+                        class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Add/Update
+                        Batch</button>
+                  </div>
+               </form>
+            </div>
+
+            <div id="undo-area" class="hidden">
+               <span id="undo-message">Item deleted.</span>
+               <button id="undo-button" class="undo-button" onclick="handleUndoDelete()">Undo</button>
+            </div>
+
+            <div class="mb-4">
+               <label for="stock-filter" class="block text-sm font-medium text-gray-700">Search by Item Name:</label>
+               <input type="text" id="stock-filter" name="stock-filter" placeholder="Enter item name..."
+                  class="mt-1 block w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+
+            <h4 class="text-lg font-medium mb-3">Current Inventory Batches</h4>
+            <div class="overflow-x-auto">
+               <table id="stock-table" class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                     <tr>
+                        <th scope="col"
+                           class="sortable-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                           data-sort-key="name">Item Name <span class="sort-icon"></span></th>
+                        <th scope="col"
+                           class="sortable-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                           data-sort-key="unit">Unit <span class="sort-icon"></span></th>
+                        <th scope="col"
+                           class="sortable-header px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                           data-sort-key="quantity">Quantity <span class="sort-icon"></span></th>
+                        <th scope="col"
+                           class="sortable-header px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                           data-sort-key="purchasePrice">Purchase Price <span class="sort-icon"></span></th>
+                        <th scope="col"
+                           class="sortable-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                           data-sort-key="dateBought">Date Bought <span class="sort-icon"></span></th>
+                        <th scope="col"
+                           class="sortable-header px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                           data-sort-key="expiryDate">Expiry Date <span class="sort-icon"></span></th>
+                        <th scope="col"
+                           class="sortable-header px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                           data-sort-key="batchValue">Batch Value <span class="sort-icon"></span></th>
+                        <th scope="col"
+                           class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                           Actions</th>
+                     </tr>
+                  </thead>
+                  <tbody id="stock-table-body" class="bg-white divide-y divide-gray-200">
+                     <tr>
+                        <td colspan="8" class="text-center py-4 text-gray-500">Loading stock items...</td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+
+            <div id="pagination-controls" class="pagination-controls">
+            </div>
+         </div>
+      </main>
+   </div>
+
+   <div id="custom-modal" class="modal-overlay">
+      <div class="modal-content">
+         <h3 id="modal-title" class="text-xl font-semibold mb-4">Confirmation</h3>
+         <p id="modal-message" class="text-gray-700 mb-6">Are you sure?</p>
+         <div id="modal-buttons" class="flex justify-end space-x-3">
+            <button id="modal-cancel-button"
+               class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-150 ease-in-out">Cancel</button>
+            <button id="modal-confirm-button"
+               class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-150 ease-in-out">Confirm</button>
+            <button id="modal-ok-button"
+               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">OK</button>
+         </div>
+      </div>
+   </div>
+   <div id="edit-stock-modal" class="modal-overlay">
+      <div class="modal-content">
+         <h3 class="text-xl font-semibold mb-4">Edit Stock Batch</h3>
+         <form id="edit-stock-form" class="space-y-4">
+            <input type="hidden" id="edit-stock-id">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div>
+                  <label for="edit-stock-name" class="block text-sm font-medium text-gray-700">Item Name</label>
+                  <input type="text" id="edit-stock-name" name="edit-stock-name" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+               <div>
+                  <label for="edit-stock-unit" class="block text-sm font-medium text-gray-700">Unit</label>
+                  <select id="edit-stock-unit" name="edit-stock-unit" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                     <option value="kg">kg</option>
+                     <option value="piece">piece</option>
+                     <option value="pack">pack</option>
+                     <option value="litre">litre</option>
+                     <option value="bottle">bottle</option>
+                     <option value="Tin">Tin</option>
+                  </select>
+               </div>
+               <div>
+                  <label for="edit-stock-quantity" class="block text-sm font-medium text-gray-700">Current
+                     Quantity</label>
+                  <input type="number" id="edit-stock-quantity" name="edit-stock-quantity" step="any" min="0" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div>
+                  <label for="edit-stock-price" class="block text-sm font-medium text-gray-700">Purchase Price</label>
+                  <input type="number" id="edit-stock-price" name="edit-stock-price" step="0.01" min="0" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+               <div>
+                  <label for="edit-stock-date-bought" class="block text-sm font-medium text-gray-700">Date
+                     Bought</label>
+                  <input type="date" id="edit-stock-date-bought" name="edit-stock-date-bought" required
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+               <div>
+                  <label for="edit-stock-expiry-date" class="block text-sm font-medium text-gray-700">Expiry
+                     Date</label>
+                  <input type="date" id="edit-stock-expiry-date" name="edit-stock-expiry-date"
+                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+               </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4">
+               <button type="button" id="edit-stock-cancel-button"
+                  class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-150 ease-in-out">Cancel</button>
+               <button type="submit"
+                  class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">Save
+                  Changes</button>
+            </div>
+         </form>
+      </div>
+   </div>
+   <div id="adjust-stock-modal" class="modal-overlay">
+      <div class="modal-content">
+         <h3 class="text-xl font-semibold mb-1">Adjust Stock Quantity</h3>
+         <p class="text-sm text-gray-600 mb-4" id="adjust-item-info">Adjusting: Item Name</p>
+         <form id="adjust-stock-form" class="space-y-4">
+            <input type="hidden" id="adjust-stock-id">
+            <div>
+               <label for="adjust-amount" class="block text-sm font-medium text-gray-700">Adjustment Amount</label>
+               <input type="number" id="adjust-amount" name="adjust-amount" step="any" required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="e.g., -1.5 or 5">
+               <p class="mt-1 text-xs text-gray-500">Enter a negative number to decrease quantity (e.g., -2 for
+                  spoilage), positive to increase (e.g., 1 for found item).</p>
+            </div>
+            <div>
+               <label for="adjust-reason" class="block text-sm font-medium text-gray-700">Reason</label>
+               <select id="adjust-reason" name="adjust-reason" required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                  <option value="">-- Select Reason --</option>
+                  <option value="Spoilage">Spoilage</option>
+                  <option value="Damage">Damage</option>
+                  <option value="Correction">Count Correction</option>
+                  <option value="Found">Found Item</option>
+                  <option value="Other">Other</option>
+               </select>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4">
+               <button type="button" id="adjust-stock-cancel-button"
+                  class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-150 ease-in-out">Cancel</button>
+               <button type="submit"
+                  class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-150 ease-in-out">Apply
+                  Adjustment</button>
+            </div>
+         </form>
+      </div>
+   </div>
+
+   <script>
+      // --- COPIED SHARED JS VARIABLES & FUNCTIONS ---
+      // Global State
+      let appData = { income: [], expenses: [], stock: [], metadata: { lastBackup: null } };
+      let recentlyDeletedStockItem = null; // Specific to stock undo
+      let undoTimeout = null; // Specific to stock undo
+      let modalConfirmCallback = null;
+
+      // DOM Elements (Common)
+      const confirmModal = document.getElementById('custom-modal');
+      const modalTitle = document.getElementById('modal-title');
+      const modalMessage = document.getElementById('modal-message');
+      const modalButtons = document.getElementById('modal-buttons');
+      const modalConfirmBtn = document.getElementById('modal-confirm-button');
+      const modalCancelBtn = document.getElementById('modal-cancel-button');
+      const modalOkBtn = document.getElementById('modal-ok-button');
+      const editModal = document.getElementById('edit-stock-modal');
+      const editStockForm = document.getElementById('edit-stock-form');
+      const editStockCancelBtn = document.getElementById('edit-stock-cancel-button');
+      const adjustModal = document.getElementById('adjust-stock-modal');
+      const adjustStockForm = document.getElementById('adjust-stock-form');
+      const adjustStockCancelBtn = document.getElementById('adjust-stock-cancel-button');
+      const adjustItemInfo = document.getElementById('adjust-item-info');
+      const contentArea = document.getElementById('content-area'); // General content area
+
+      // --- Shared Functions (Copied from original script) ---
+
+      // Modal Setup and Functions
+      function setupConfirmModal() { /* COPY function from dashboard.html */
+         modalCancelBtn?.addEventListener('click', hideConfirmModal);
+         modalOkBtn?.addEventListener('click', hideConfirmModal);
+         modalConfirmBtn?.addEventListener('click', () => {
+            if (typeof modalConfirmCallback === 'function') { try { modalConfirmCallback(); } catch (error) { console.error("Callback Error:", error); showCustomAlert("Action error.", "Error"); } }
+            hideConfirmModal();
+         });
+         confirmModal?.addEventListener('click', (event) => { if (event.target === confirmModal) hideConfirmModal(); });
+      }
+      function showConfirmModal(title, message, type = 'alert') { /* COPY function from dashboard.html */
+         if (!confirmModal || !modalTitle || !modalMessage || !modalConfirmBtn || !modalCancelBtn || !modalOkBtn) return;
+         modalTitle.textContent = title; modalMessage.textContent = message; modalConfirmCallback = null;
+         modalConfirmBtn.style.display = (type === 'confirm') ? 'inline-block' : 'none';
+         modalCancelBtn.style.display = (type === 'confirm') ? 'inline-block' : 'none';
+         modalOkBtn.style.display = (type === 'alert') ? 'inline-block' : 'none';
+         modalConfirmBtn.className = 'px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-150 ease-in-out';
+         confirmModal.classList.add('visible');
+      }
+      function hideConfirmModal() { /* COPY function from dashboard.html */
+         if (confirmModal && confirmModal.classList.contains('visible')) {
+            confirmModal.classList.remove('visible');
+            if (modalConfirmCallback) modalConfirmCallback = null;
+         }
+      }
+      function showCustomAlert(message, title = "Alert") { /* COPY function from dashboard.html */
+         showConfirmModal(title, message, 'alert');
+      }
+      function showCustomConfirm(message, onConfirm, title = "Confirmation", confirmBtnClass = 'bg-red-600 hover:bg-red-700') { /* COPY function from dashboard.html */
+         if (!modalConfirmBtn) return;
+         if (typeof onConfirm === 'function') {
+            showConfirmModal(title, message, 'confirm');
+            modalConfirmCallback = onConfirm;
+            modalConfirmBtn.className = `px-4 py-2 text-white rounded-md transition duration-150 ease-in-out ${confirmBtnClass}`;
+         } else { showCustomAlert("Internal error (confirm setup).", "Error"); }
+      }
+      function setupEditModal() { /* COPY function from dashboard.html */
+         editStockCancelBtn?.addEventListener('click', hideEditModal);
+         editModal?.addEventListener('click', (event) => { if (event.target === editModal) hideEditModal(); });
+         editStockForm?.addEventListener('submit', handleUpdateStockItem); // Attach submit handler here
+      }
+      function showEditModal(stockItem) { /* COPY function from dashboard.html */
+         if (!editModal) return;
+         console.log("[EditModal] Showing for item:", stockItem?.id);
+         document.getElementById('edit-stock-id').value = stockItem?.id || '';
+         document.getElementById('edit-stock-name').value = stockItem?.name || '';
+         document.getElementById('edit-stock-unit').value = stockItem?.unit || 'kg';
+         document.getElementById('edit-stock-quantity').value = stockItem?.quantity || 0;
+         document.getElementById('edit-stock-price').value = stockItem?.purchasePrice || 0;
+         document.getElementById('edit-stock-date-bought').value = stockItem?.dateBought || '';
+         document.getElementById('edit-stock-expiry-date').value = stockItem?.expiryDate || '';
+         editModal.classList.add('visible');
+      }
+      function hideEditModal() { /* COPY function from dashboard.html */
+         if (editModal && editModal.classList.contains('visible')) {
+            editModal.classList.remove('visible');
+            editStockForm?.reset();
+         }
+      }
+      function setupAdjustModal() { /* COPY function from dashboard.html */
+         adjustStockCancelBtn?.addEventListener('click', hideAdjustModal);
+         adjustModal?.addEventListener('click', (event) => { if (event.target === adjustModal) hideAdjustModal(); });
+         adjustStockForm?.addEventListener('submit', handleStockAdjustmentSubmit); // Attach submit handler here
+      }
+      function showAdjustModal(stockItem) { /* COPY function from dashboard.html */
+         if (!adjustModal || !adjustItemInfo) return;
+         console.log("[AdjustModal] Showing for item:", stockItem?.id);
+         document.getElementById('adjust-stock-id').value = stockItem?.id || '';
+         adjustItemInfo.textContent = `Adjusting: ${stockItem?.name || '?'} (Bought: ${formatDate(stockItem?.dateBought)}, Current: ${stockItem?.quantity || 0} ${stockItem?.unit || '?'})`;
+         adjustModal.classList.add('visible');
+      }
+      function hideAdjustModal() { /* COPY function from dashboard.html */
+         if (adjustModal && adjustModal.classList.contains('visible')) {
+            adjustModal.classList.remove('visible');
+            adjustStockForm?.reset();
+         }
+      }
+
+      // Data Persistence & Backup
+      function saveDataToLocalStorage() { /* COPY function from dashboard.html */
+         try {
+            localStorage.setItem('shopMonitorData', JSON.stringify(appData));
+            console.log("Data saved.");
+            updateLastBackupTime(new Date());
+         } catch (error) { console.error("Save Error:", error); showCustomAlert("Error saving data.", "Save Error"); }
+      }
+      function loadDataFromLocalStorage() { /* COPY function from dashboard.html */
+         const dataString = localStorage.getItem('shopMonitorData');
+         if (dataString) {
+            try {
+               const loadedData = JSON.parse(dataString);
+               appData.income = Array.isArray(loadedData.income) ? loadedData.income : [];
+               appData.expenses = Array.isArray(loadedData.expenses) ? loadedData.expenses : [];
+               appData.stock = Array.isArray(loadedData.stock) ? loadedData.stock : [];
+               appData.metadata = typeof loadedData.metadata === 'object' && loadedData.metadata !== null ? loadedData.metadata : { lastBackup: null };
+               appData.stock.forEach(item => { if (item.initialQuantity === undefined) item.initialQuantity = item.quantity; });
+               console.log("Data loaded.");
+            } catch (error) { console.error("Load Error:", error); showCustomAlert("Error loading data.", "Load Error"); appData = { income: [], expenses: [], stock: [], metadata: { lastBackup: null } }; }
+         } else { console.log("No saved data."); appData = { income: [], expenses: [], stock: [], metadata: { lastBackup: null } }; }
+         updateLastBackupDisplay();
+      }
+      function handleSaveAndBackup() { /* COPY function from dashboard.html */
+         saveDataToLocalStorage();
+         try {
+            const timestamp = new Date().toISOString().slice(0, 10);
+            const incomeCsv = generateCsv(appData.income, ['id', 'date', 'description', 'itemName', 'quantitySold', 'sellingPricePerUnit', 'totalSale', 'calculatedCogs', 'grossProfit', 'profitPerUnit']);
+            const expensesCsv = generateCsv(appData.expenses, ['id', 'date', 'amount', 'category', 'description']);
+            const stockCsv = generateCsv(appData.stock, ['id', 'name', 'unit', 'quantity', 'initialQuantity', 'purchasePrice', 'dateBought', 'expiryDate']);
+            if (incomeCsv) downloadCsv(incomeCsv, `backup-income-${timestamp}.csv`);
+            if (expensesCsv) downloadCsv(expensesCsv, `backup-expenses-${timestamp}.csv`);
+            if (stockCsv) downloadCsv(stockCsv, `backup-stock-${timestamp}.csv`);
+            showCustomAlert("Data saved & backup files generated!", "Backup Successful");
+         } catch (error) { console.error("Backup Error:", error); showCustomAlert("Backup failed.", "Backup Error"); }
+      }
+      function generateCsv(data, headers) { /* COPY function from dashboard.html */
+         if (!Array.isArray(data) || data.length === 0) return '';
+         const columns = headers || Object.keys(data[0] || {});
+         if (columns.length === 0) return '';
+         let csvContent = columns.map(col => `"${String(col).replace(/"/g, '""')}"`).join(',') + '\n';
+         data.forEach(row => {
+            const values = columns.map(col => {
+               let value = row[col];
+               if (value === null || value === undefined) value = '';
+               else if (typeof value === 'object') value = JSON.stringify(value);
+               value = String(value).replace(/"/g, '""');
+               if (String(value).includes(',')) value = `"${value}"`;
+               return value;
+            });
+            csvContent += values.join(',') + '\n';
+         });
+         return csvContent;
+      }
+      function downloadCsv(csvContent, filename) { /* COPY function from dashboard.html */
+         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+         const link = document.createElement("a");
+         if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url); link.setAttribute("download", filename);
+            link.style.visibility = 'hidden'; document.body.appendChild(link);
+            link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+         } else { showCustomAlert("CSV download not supported.", "Download Error"); }
+      }
+
+      // Utility Functions
+      function generateId(prefix = 'id') { /* COPY function from dashboard.html */
+         return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      }
+      function formatCurrency(amount) { /* COPY function from dashboard.html */
+         const formatter = new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+         const numAmount = Number(amount);
+         if (isNaN(numAmount)) return 'Rs 0.00';
+         return formatter.format(numAmount).replace('LKR', 'Rs');
+      }
+      function formatDate(dateString) { /* COPY function from dashboard.html */
+         if (!dateString) return 'N/A';
+         try { return new Date(dateString + 'T00:00:00').toLocaleDateString('en-CA'); }
+         catch (e) { return 'Invalid Date'; }
+      }
+      function calculateExpiryDate(startDateStr, daysToAdd) { /* COPY function from original script */
+         try {
+            const startDate = new Date(startDateStr + 'T00:00:00');
+            startDate.setDate(startDate.getDate() + daysToAdd);
+            return startDate.toISOString().slice(0, 10);
+         } catch (e) {
+            console.error("Error calculating expiry date:", e);
+            return ''; // Return empty string on error
+         }
+      }
+      function getShortDate(date = new Date()) { /* COPY function from dashboard.html */
+         if (!(date instanceof Date)) date = new Date();
+         return date.toISOString().slice(0, 10);
+      }
+      function updateLastBackupTime(date) { /* COPY function from dashboard.html */
+         if (date instanceof Date) { appData.metadata.lastBackup = date.toISOString(); updateLastBackupDisplay(); }
+      }
+      function updateLastBackupDisplay() { /* COPY function from dashboard.html */
+         const infoElement = document.querySelector('#last-backup-info'); // May be on other pages
+         let displayText = "Never";
+         if (appData.metadata?.lastBackup) {
+            try { displayText = new Date(appData.metadata.lastBackup).toLocaleString(); } catch (e) { displayText = "Invalid date"; }
+         }
+         if (infoElement) infoElement.textContent = displayText;
+      }
+
+      // Autocomplete Helpers
+      function getUniqueItemNames(limit = 0) { /* COPY function from income.html */
+         const names = appData.stock.map(item => item.name).reverse();
+         const uniqueNames = [...new Set(names)];
+         return limit > 0 ? uniqueNames.slice(0, limit) : uniqueNames;
+      }
+      function getAvailableItemNames(limit = 0) { /* COPY function from income.html */
+         const names = appData.stock.filter(item => item.quantity > 0).map(item => item.name).sort();
+         const uniqueNames = [...new Set(names)];
+         return limit > 0 ? uniqueNames.slice(0, limit) : uniqueNames;
+      }
+      function showSuggestions(names, inputElement, containerElement) { /* COPY function from income.html */
+         if (!containerElement) return; containerElement.innerHTML = '';
+         if (names.length === 0) { hideSuggestions(containerElement); return; }
+         names.forEach(name => {
+            const div = document.createElement('div'); div.textContent = name; div.className = 'suggestion-item';
+            div.addEventListener('mousedown', (e) => { e.preventDefault(); inputElement.value = name; hideSuggestions(containerElement); });
+            containerElement.appendChild(div);
+         });
+         containerElement.classList.remove('hidden');
+      }
+      function hideSuggestions(containerElement) { /* COPY function from income.html */
+         if (containerElement && !containerElement.classList.contains('hidden')) {
+            containerElement.classList.add('hidden'); containerElement.innerHTML = '';
+         }
+      }
+
+      // Dashboard Update Logic (Needed because stock value changes)
+      function updateDashboardSummary() { /* COPY function from dashboard.html */
+         const stockValueEl = document.getElementById('dashboard-stock-value');
+         const grossProfitEl = document.getElementById('dashboard-gross-profit');
+         const netProfitEl = document.getElementById('dashboard-net-profit');
+         if (stockValueEl) { // Update stock value
+            const totalStockValue = appData.stock.reduce((sum, item) => (Number(item.quantity) || 0) * (Number(item.purchasePrice) || 0) + sum, 0);
+            stockValueEl.textContent = formatCurrency(totalStockValue);
+         }
+         if (grossProfitEl || netProfitEl) { // Update profit figures
+            const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30); const thirtyDaysAgoStr = getShortDate(thirtyDaysAgo);
+            const recentIncome = appData.income.filter(inc => inc.date >= thirtyDaysAgoStr);
+            const recentExpenses = appData.expenses.filter(exp => exp.date >= thirtyDaysAgoStr);
+            const totalRecentGrossProfit = recentIncome.reduce((sum, inc) => sum + (Number(inc.grossProfit) || 0), 0);
+            const totalRecentExpenses = recentExpenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+            const totalRecentNetProfit = totalRecentGrossProfit - totalRecentExpenses;
+            if (grossProfitEl) grossProfitEl.textContent = formatCurrency(totalRecentGrossProfit);
+            if (netProfitEl) netProfitEl.textContent = formatCurrency(totalRecentNetProfit);
+         }
+      }
+
+      // --- SECTION-SPECIFIC JS (Stock Management) ---
+
+      // Stock Page State Variables
+      let currentPage = 1;
+      const rowsPerPage = 10; // Items per page
+      let sortColumn = 'dateBought'; // Default sort
+      let sortDirection = 'desc'; // Default direction
+      let filterText = ''; // Current filter text
+
+      // Setup Autocomplete specifically for the stock item name input
+      function setupStockAutocomplete() {
+         const input = document.getElementById('stock-name');
+         const suggestionsContainer = document.getElementById('item-name-suggestions');
+         if (!input || !suggestionsContainer) return;
+
+         input.addEventListener('focus', () => {
+            const recentNames = getUniqueItemNames(5); // Show recent historical names on focus
+            showSuggestions(recentNames, input, suggestionsContainer);
+         });
+         input.addEventListener('input', () => {
+            const value = input.value.toLowerCase().trim();
+            if (value === '') {
+               hideSuggestions(suggestionsContainer);
+            } else {
+               const allUniqueNames = getUniqueItemNames(); // Search all historical names
+               const filteredNames = allUniqueNames.filter(name => name.toLowerCase().includes(value)).slice(0, 7);
+               showSuggestions(filteredNames, input, suggestionsContainer);
+            }
+         });
+         input.addEventListener('blur', () => {
+            setTimeout(() => hideSuggestions(suggestionsContainer), 150); // Delay hide
+         });
+      }
+
+      // Handle adding/updating a stock batch from the form
+      function handleAddStockBatch(event) {
+         event.preventDefault();
+         const form = event.target;
+         const unit = form['stock-unit'].value;
+         const name = form['stock-name'].value.trim();
+         const quantity = parseFloat(form['stock-quantity'].value);
+         const price = parseFloat(form['stock-price'].value);
+         const dateBought = form['stock-date-bought'].value;
+         const expiryDate = form['stock-expiry-date'].value || null; // Handle empty expiry
+
+         // Validation
+         if (!name || !unit || isNaN(quantity) || quantity <= 0 || isNaN(price) || price < 0 || !dateBought) {
+            showCustomAlert('Invalid input. Please check all fields (Name, Unit, Quantity > 0, Price >= 0, Date Bought).', 'Input Error');
+            return;
+         }
+         if (expiryDate && expiryDate < dateBought) {
+            showCustomAlert('Expiry Date cannot be before Date Bought.', 'Input Error');
+            return;
+         }
+
+         // Check if a batch with the same name, price, and date already exists to update quantity
+         const existingBatchIndex = appData.stock.findIndex(item =>
+            item.name.toLowerCase() === name.toLowerCase() &&
+            item.purchasePrice === price &&
+            item.dateBought === dateBought &&
+            item.expiryDate === expiryDate // Also match expiry date for merging
+         );
+
+         if (existingBatchIndex > -1) {
+            // Update existing batch
+            const existingBatch = appData.stock[existingBatchIndex];
+            existingBatch.quantity += quantity;
+            // Update initial quantity if it exists, otherwise set it
+            existingBatch.initialQuantity = (existingBatch.initialQuantity || existingBatch.quantity - quantity) + quantity;
+            console.log(`Updated batch quantity for: ${name}`);
+            showCustomAlert(`Added ${quantity} ${unit}(s) to existing batch of ${name}.`, 'Batch Updated');
+         } else {
+            // Add new batch
+            const newBatch = {
+               id: generateId('stk'),
+               name,
+               unit,
+               quantity: quantity,
+               initialQuantity: quantity, // Set initial quantity on creation
+               purchasePrice: price,
+               dateBought,
+               expiryDate
+            };
+            appData.stock.push(newBatch);
+            console.log(`Added new batch: ${name}`);
+            showCustomAlert(`New batch of ${quantity} ${unit}(s) of ${name} added.`, 'Batch Added');
+         }
+
+         saveDataToLocalStorage();
+         // Reset view state and refresh display
+         currentPage = 1;
+         filterText = '';
+         const filterInput = document.getElementById('stock-filter');
+         if (filterInput) filterInput.value = ''; // Clear filter input
+
+         updateStockSummaryBox(); // Update summary counts
+         displayStockItems(); // Refresh the table
+         updateDashboardSummary(); // Update overall dashboard figures
+
+         // Reset form for next entry
+         form.reset();
+         const today = getShortDate();
+         form['stock-date-bought'].value = today;
+         form['stock-expiry-date'].value = calculateExpiryDate(today, 90); // Default expiry 90 days
+         form['stock-unit'].value = 'kg'; // Reset unit dropdown
+         setupStockAutocomplete(); // Refresh autocomplete suggestions
+      }
+
+      // Handle clicking the edit button on a stock row
+      window.handleEditStockItem = function (itemId) { // Assign to window for onclick
+         const itemToEdit = appData.stock.find(item => item.id === itemId);
+         if (!itemToEdit) {
+            console.error(`[Edit] Item ID ${itemId} not found.`);
+            showCustomAlert("Error: Could not find the item to edit.", "Edit Error");
+            return;
+         }
+         showEditModal(itemToEdit); // Show the edit modal with item data
+      }
+
+      // Handle submitting the edit stock form (from modal)
+      function handleUpdateStockItem(event) {
+         event.preventDefault();
+         const form = event.target; // The edit form itself
+         const itemId = form['edit-stock-id'].value;
+
+         // Gather updated data from the form
+         const updatedData = {
+            name: form['edit-stock-name'].value.trim(),
+            unit: form['edit-stock-unit'].value,
+            quantity: parseFloat(form['edit-stock-quantity'].value),
+            purchasePrice: parseFloat(form['edit-stock-price'].value),
+            dateBought: form['edit-stock-date-bought'].value,
+            expiryDate: form['edit-stock-expiry-date'].value || null
+         };
+
+         // Validation
+         if (!updatedData.name || !updatedData.unit || isNaN(updatedData.quantity) || updatedData.quantity < 0 || isNaN(updatedData.purchasePrice) || updatedData.purchasePrice < 0 || !updatedData.dateBought) {
+            showCustomAlert('Please fill all fields correctly in the edit form.', 'Invalid Input');
+            return;
+         }
+         if (updatedData.expiryDate && updatedData.expiryDate < updatedData.dateBought) {
+            showCustomAlert('Expiry Date cannot be before Date Bought.', 'Invalid Input');
+            return;
+         }
+
+         const itemIndex = appData.stock.findIndex(item => item.id === itemId);
+         if (itemIndex === -1) {
+            console.error(`[Update] Item ID ${itemId} not found.`);
+            showCustomAlert("Error: Could not find item to update.", "Update Error");
+            hideEditModal();
+            return;
+         }
+
+         // Confirm before saving changes
+         showCustomConfirm(`Are you sure you want to save changes for "${updatedData.name}"?`, () => {
+            console.log(`[Update] Updating ID: ${itemId}`);
+            const originalItem = appData.stock[itemIndex];
+            // Update the item - preserve initialQuantity unless quantity itself changed significantly
+            // Note: This assumes editing doesn't reset initial quantity unless necessary.
+            // A more complex logic might be needed depending on desired behavior.
+            appData.stock[itemIndex] = { ...originalItem, ...updatedData };
+
+            saveDataToLocalStorage();
+            updateStockSummaryBox();
+            displayStockItems();
+            updateDashboardSummary();
+            hideEditModal();
+            showCustomAlert(`Batch "${updatedData.name}" updated successfully.`, "Update Successful");
+         }, "Confirm Update", 'bg-blue-600 hover:bg-blue-700'); // Blue confirm button
+      }
+
+      // Handle clicking the adjust quantity button
+      window.handleAdjustStockClick = function (itemId) { // Assign to window for onclick
+         const itemToAdjust = appData.stock.find(item => item.id === itemId);
+         if (!itemToAdjust) {
+            console.error(`[Adjust] Item ID ${itemId} not found.`);
+            showCustomAlert("Error: Could not find item to adjust.", "Adjust Error");
+            return;
+         }
+         showAdjustModal(itemToAdjust); // Show adjustment modal
+      }
+
+      // Handle submitting the stock adjustment form (from modal)
+      function handleStockAdjustmentSubmit(event) {
+         event.preventDefault();
+         const form = event.target;
+         const itemId = form['adjust-stock-id'].value;
+         const adjustmentAmount = parseFloat(form['adjust-amount'].value);
+         const reason = form['adjust-reason'].value;
+
+         // Validation
+         if (isNaN(adjustmentAmount) || adjustmentAmount === 0) {
+            showCustomAlert("Please enter a valid non-zero adjustment amount.", "Invalid Input");
+            return;
+         }
+         if (!reason) {
+            showCustomAlert("Please select a reason for the adjustment.", "Invalid Input");
+            return;
+         }
+
+         const itemIndex = appData.stock.findIndex(item => item.id === itemId);
+         if (itemIndex === -1) {
+            console.error(`[Adjust] Item ID ${itemId} not found.`);
+            showCustomAlert("Error: Could not find item to adjust.", "Adjust Error");
+            hideAdjustModal();
+            return;
+         }
+
+         const item = appData.stock[itemIndex];
+         const originalQuantity = item.quantity;
+         const newQuantity = originalQuantity + adjustmentAmount;
+
+         // Prevent negative stock
+         if (newQuantity < 0) {
+            showCustomAlert(`Adjustment results in negative quantity (${newQuantity.toFixed(2)}). Cannot apply. Current quantity is ${originalQuantity.toFixed(2)}.`, "Invalid Adjustment");
+            return;
+         }
+
+         // Confirm adjustment
+         showCustomConfirm(`Adjust quantity for "${item.name}" from ${originalQuantity.toFixed(2)} by ${adjustmentAmount.toFixed(2)} (Reason: ${reason})?\nNew quantity will be: ${newQuantity.toFixed(2)}. Confirm?`, () => {
+            console.log(`[Adjust] Adjusting item ${itemId} by ${adjustmentAmount}. Reason: ${reason}`);
+            item.quantity = newQuantity; // Apply the adjustment
+
+            // Consider if initialQuantity should also be adjusted? Typically not for adjustments like spoilage.
+
+            saveDataToLocalStorage();
+            updateStockSummaryBox();
+            displayStockItems();
+            updateDashboardSummary();
+            hideAdjustModal();
+            showCustomAlert("Stock quantity adjusted successfully.", "Adjustment Applied");
+
+            // Refresh income autocomplete suggestions if stock level changed significantly
+            const incomeInput = document.getElementById('item-sale-name'); // Check if income form exists (it doesn't on this page)
+            const incomeSuggestions = document.getElementById('income-item-suggestions');
+            if (incomeInput && incomeSuggestions && !incomeSuggestions.classList.contains('hidden')) {
+               const value = incomeInput.value.toLowerCase().trim();
+               const availableNames = getAvailableItemNames();
+               const filteredNames = availableNames.filter(name => name.toLowerCase().includes(value)).slice(0, 7);
+               showSuggestions(filteredNames, incomeInput, incomeSuggestions);
+            }
+         }, "Confirm Adjustment", 'bg-green-600 hover:bg-green-700'); // Green confirm button
+      }
+
+      // Handle filtering the stock table
+      function handleFilterChange(event) {
+         filterText = event.target.value.trim().toLowerCase();
+         console.log(`[Filter] Text: "${filterText}"`);
+         currentPage = 1; // Reset to first page on filter change
+         displayStockItems(); // Re-render table with filter applied
+      }
+
+      // Filter data based on filterText
+      function filterData(data) {
+         if (!filterText) return data; // No filter applied
+         return data.filter(item => item.name.toLowerCase().includes(filterText));
+      }
+
+      // Handle clicking on sortable table headers
+      function handleSort(key) {
+         console.log(`[Sort] Request: ${key}`);
+         if (sortColumn === key) {
+            // Toggle direction if same column clicked
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+         } else {
+            // Set new sort column and default direction
+            sortColumn = key;
+            // Default to asc for text, desc for numbers/dates
+            sortDirection = (key === 'name' || key === 'unit') ? 'asc' : 'desc';
+         }
+         console.log(`[Sort] State: ${sortColumn} ${sortDirection}`);
+         currentPage = 1; // Reset to first page on sort change
+         displayStockItems(); // Re-render table with new sort order
+      }
+
+      // Sort data based on sortColumn and sortDirection
+      function sortData(data) {
+         const sortedData = [...data]; // Create a copy to sort
+         sortedData.sort((a, b) => {
+            let valA, valB;
+
+            // Handle calculated 'batchValue' column
+            if (sortColumn === 'batchValue') {
+               valA = (Number(a.quantity) || 0) * (Number(a.purchasePrice) || 0);
+               valB = (Number(b.quantity) || 0) * (Number(b.purchasePrice) || 0);
+            } else {
+               valA = a[sortColumn];
+               valB = b[sortColumn];
+            }
+
+            // Type conversions/handling for comparison
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            // Handle null/undefined expiry dates for sorting
+            if (sortColumn === 'expiryDate') {
+               // Treat null/empty dates as very far in the future for asc, very near for desc
+               const dateA = valA ? new Date(valA).getTime() : (sortDirection === 'asc' ? Infinity : -Infinity);
+               const dateB = valB ? new Date(valB).getTime() : (sortDirection === 'asc' ? Infinity : -Infinity);
+               valA = dateA;
+               valB = dateB;
+            } else if (sortColumn === 'dateBought') {
+               // Convert dates to timestamps for comparison
+               valA = valA ? new Date(valA).getTime() : 0;
+               valB = valB ? new Date(valB).getTime() : 0;
+            } else if (typeof valA === 'number' && typeof valB === 'number') {
+               // Direct number comparison
+            } else {
+               // Default comparison (treat as strings if types differ or aren't handled above)
+               valA = String(valA);
+               valB = String(valB);
+            }
+
+
+            // Comparison logic
+            let comparison = 0;
+            if (valA < valB) {
+               comparison = -1;
+            } else if (valA > valB) {
+               comparison = 1;
+            }
+
+            // Apply sort direction
+            return sortDirection === 'asc' ? comparison : comparison * -1;
+         });
+         return sortedData;
+      }
+
+      // Update visual indicators (arrows) on sortable headers
+      function updateSortIndicators() {
+         document.querySelectorAll('#stock-table .sortable-header').forEach(header => {
+            const key = header.getAttribute('data-sort-key');
+            const iconSpan = header.querySelector('.sort-icon');
+            if (!iconSpan) return;
+
+            header.classList.remove('sort-asc', 'sort-desc'); // Remove previous classes
+            iconSpan.innerHTML = ''; // Clear icon
+
+            if (key === sortColumn) {
+               if (sortDirection === 'asc') {
+                  header.classList.add('sort-asc');
+                  iconSpan.innerHTML = '<i class="fas fa-sort-up"></i>'; // Up arrow
+               } else {
+                  header.classList.add('sort-desc');
+                  iconSpan.innerHTML = '<i class="fas fa-sort-down"></i>'; // Down arrow
+               }
+            }
+         });
+      }
+
+      // Handle changing the current page for pagination
+      function changePage(newPage) {
+         // Basic validation, can be expanded based on total pages later
+         if (newPage < 1) return;
+         currentPage = newPage;
+         console.log(`[Pagination] Changed to Page: ${currentPage}`);
+         displayStockItems(); // Re-render the table for the new page
+      }
+
+      // Render pagination controls (Previous/Next buttons, page info)
+      function renderPaginationControls(totalItems) {
+         const controlsContainer = document.getElementById('pagination-controls');
+         if (!controlsContainer) return; // Exit if container not found
+
+         const totalPages = Math.ceil(totalItems / rowsPerPage);
+         controlsContainer.innerHTML = ''; // Clear previous controls
+
+         if (totalPages <= 1) return; // No controls needed for 1 or 0 pages
+
+         // Page Info Text
+         const pageInfo = document.createElement('div');
+         pageInfo.className = 'page-info';
+         pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${totalItems} items)`;
+
+         // Buttons Container
+         const buttonsContainer = document.createElement('div');
+         buttonsContainer.className = 'flex space-x-2';
+
+         // Previous Button
+         const prevButton = document.createElement('button');
+         prevButton.textContent = 'Previous';
+         prevButton.className = 'pagination-button';
+         prevButton.disabled = currentPage === 1;
+         prevButton.addEventListener('click', () => changePage(currentPage - 1));
+
+         // Next Button
+         const nextButton = document.createElement('button');
+         nextButton.textContent = 'Next';
+         nextButton.className = 'pagination-button';
+         nextButton.disabled = currentPage === totalPages;
+         nextButton.addEventListener('click', () => changePage(currentPage + 1));
+
+         // Append elements
+         buttonsContainer.appendChild(prevButton);
+         buttonsContainer.appendChild(nextButton);
+         controlsContainer.appendChild(pageInfo);
+         controlsContainer.appendChild(buttonsContainer);
+      }
+
+      // Display stock items in the table (handles filtering, sorting, pagination)
+      function displayStockItems() {
+         const tableBody = document.getElementById('stock-table-body');
+         if (!tableBody) { console.error("Stock table body not found!"); return; }
+         tableBody.innerHTML = ''; // Clear existing table content
+
+         // Apply filtering and sorting
+         const filteredData = filterData(appData.stock);
+         const sortedData = sortData(filteredData);
+
+         // Apply pagination
+         const startIndex = (currentPage - 1) * rowsPerPage;
+         const endIndex = startIndex + rowsPerPage;
+         const paginatedData = sortedData.slice(startIndex, endIndex);
+
+         const colSpan = 8; // Number of columns in the stock table
+
+         if (paginatedData.length === 0) {
+            const message = appData.stock.length === 0 ? "No stock items recorded yet." : (filterText ? "No items match your search." : "No items on this page.");
+            tableBody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-4 text-gray-500">${message}</td></tr>`;
+         } else {
+            const todayStr = getShortDate();
+            const tomorrowStr = calculateExpiryDate(todayStr, 1);
+            const dayAfterStr = calculateExpiryDate(todayStr, 2);
+
+            paginatedData.forEach(item => {
+               const row = document.createElement('tr');
+               row.id = `stock-row-${item.id}`; // Assign ID for potential future use
+
+               let isFinished = item.quantity <= 0;
+               let expiryColorClass = '';
+               let quantityColorClass = '';
+               let stockLevelBarColorClass = '';
+               let stockLevelWidth = 0;
+
+               if (isFinished) {
+                  row.classList.add('row-disabled'); // Apply disabled style
+               } else {
+                  // Expiry Highlighting (Compare dates as strings)
+                  if (item.expiryDate) {
+                     if (item.expiryDate <= todayStr) expiryColorClass = 'text-highlight-red font-bold'; // Expired or Today
+                     else if (item.expiryDate === tomorrowStr) expiryColorClass = 'text-highlight-red'; // Tomorrow
+                     else if (item.expiryDate === dayAfterStr) expiryColorClass = 'text-highlight-yellow'; // Day After
+                  }
+
+                  // Quantity Highlighting & Bar Color/Width
+                  const lowStockThreshold = 10; // Example threshold - adjust as needed
+                  const mediumStockThreshold = 20; // Example threshold
+
+                  if (item.quantity <= lowStockThreshold) {
+                     quantityColorClass = 'text-highlight-red';
+                     stockLevelBarColorClass = 'stock-level-low';
+                  } else if (item.quantity <= mediumStockThreshold) {
+                     quantityColorClass = 'text-highlight-yellow';
+                     stockLevelBarColorClass = 'stock-level-medium';
+                  } else {
+                     stockLevelBarColorClass = 'stock-level-high';
+                  }
+
+                  // Calculate stock level bar width based on initial quantity
+                  const initialQty = item.initialQuantity ?? item.quantity; // Fallback if initialQuantity missing
+                  if (initialQty > 0) {
+                     stockLevelWidth = Math.max(0, Math.min(100, (item.quantity / initialQty) * 100));
+                  }
+               }
+
+               // Combine quantity number and visual bar
+               const quantityCellContent = `
+                        <div class="stock-indicator-container">
+                            <span class="${quantityColorClass}">${item.quantity.toFixed(2)}</span>
+                            <div class="stock-level-bar-bg">
+                                <div class="stock-level-bar ${stockLevelBarColorClass}" style="width: ${stockLevelWidth}%;"></div>
+                            </div>
+                        </div>`;
+
+               // Calculate batch value
+               const batchValue = (Number(item.quantity) || 0) * (Number(item.purchasePrice) || 0);
+
+               // Populate row cells
+               row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.unit}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right">${quantityCellContent}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatCurrency(item.purchasePrice)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(item.dateBought)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${expiryColorClass}">${formatDate(item.expiryDate)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${formatCurrency(batchValue)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                            <button class="text-green-600 hover:text-green-900 mr-2" onclick="handleAdjustStockClick('${item.id}')" title="Adjust Quantity"><i class="fas fa-sliders-h"></i></button>
+                            <button class="text-blue-600 hover:text-blue-900 mr-2 ${isFinished ? 'opacity-50 cursor-not-allowed' : ''}" onclick="${isFinished ? '' : `handleEditStockItem('${item.id}')`}" title="Edit Batch" ${isFinished ? 'disabled' : ''}><i class="fas fa-edit"></i></button>
+                            <button class="text-red-600 hover:text-red-900 ${isFinished ? 'opacity-50 cursor-not-allowed' : ''}" onclick="${isFinished ? '' : `handleDeleteStockItem('${item.id}')`}" title="Delete Batch" ${isFinished ? 'disabled' : ''}><i class="fas fa-trash-alt"></i></button>
+                        </td>`;
+               tableBody.appendChild(row);
+            });
+         }
+
+         // Update pagination controls based on the total number of filtered items
+         renderPaginationControls(filteredData.length);
+         // Update sort indicators on table headers
+         updateSortIndicators();
+      }
+
+      // Update the stock summary box (counts for low stock, expiring, etc.)
+      function updateStockSummaryBox() {
+         const summaryBox = document.getElementById('stock-summary-box');
+         if (!summaryBox) return; // Exit if summary box element not found
+
+         const todayStr = getShortDate();
+         const tomorrowStr = calculateExpiryDate(todayStr, 1);
+         const dayAfterTomorrowStr = calculateExpiryDate(todayStr, 2);
+
+         let lowStockCount = 0;
+         let expiringSoonCount = 0; // Expired, Today, Tomorrow
+         let expiringLaterCount = 0; // Day After Tomorrow
+
+         const lowStockThreshold = 10; // Match threshold used in displayStockItems
+
+         const activeStock = appData.stock.filter(item => item.quantity > 0); // Consider only items with quantity > 0
+
+         activeStock.forEach(item => {
+            // Check low stock
+            if (item.quantity <= lowStockThreshold) {
+               lowStockCount++;
+            }
+            // Check expiry date
+            if (item.expiryDate) {
+               if (item.expiryDate <= tomorrowStr) { // Expired, Today, or Tomorrow
+                  expiringSoonCount++;
+               } else if (item.expiryDate === dayAfterTomorrowStr) { // Day After Tomorrow
+                  expiringLaterCount++;
+               }
+            }
+         });
+
+         const activeBatchCount = activeStock.length;
+
+         // Update the inner HTML of the summary box
+         summaryBox.innerHTML = `
+                <div class="summary-item summary-item-blue">
+                    <span class="summary-value">${activeBatchCount}</span>
+                    <span class="summary-label">Active Batches</span>
+                </div>
+                <div class="summary-item ${lowStockCount > 0 ? 'summary-item-red' : 'summary-item-blue'}">
+                    <span class="summary-value">${lowStockCount}</span>
+                    <span class="summary-label">Low Stock (≤${lowStockThreshold})</span>
+                </div>
+                <div class="summary-item ${expiringSoonCount > 0 ? 'summary-item-red' : 'summary-item-blue'}">
+                    <span class="summary-value">${expiringSoonCount}</span>
+                    <span class="summary-label">Expiring Soon (≤1 Day)</span>
+                </div>
+                <div class="summary-item ${expiringLaterCount > 0 ? 'summary-item-yellow' : 'summary-item-blue'}">
+                    <span class="summary-value">${expiringLaterCount}</span>
+                    <span class="summary-label">Expiring (2 Days)</span>
+                </div>`;
+      }
+
+      // --- Delete and Undo Logic ---
+      window.handleDeleteStockItem = function (itemId) { // Assign to window for onclick
+         const itemIndex = appData.stock.findIndex(item => item.id === itemId);
+         if (itemIndex === -1) {
+            console.error(`[Delete] ID ${itemId} not found.`);
+            showCustomAlert(`Error: Stock batch not found.`, "Delete Error");
+            return;
+         }
+         const itemToDelete = { ...appData.stock[itemIndex] }; // Clone item before deleting
+
+         // Check if item was used in any income records (basic check by name)
+         const usedInIncome = appData.income.some(inc => inc.itemName === itemToDelete.name);
+         let deleteMsg = `Are you sure you want to delete the batch of "${itemToDelete.name}" bought on ${formatDate(itemToDelete.dateBought)}?`;
+         if (usedInIncome) {
+            deleteMsg += `\n\nWARNING: Items with this name have been sold. Deleting this batch might affect historical profit calculations if not handled carefully. This action cannot be undone via the Undo button.`
+         } else {
+            deleteMsg += ` This action can be undone for a short time.`
+         }
+
+
+         console.log(`[Delete] Confirm batch: ${itemToDelete.name} (ID: ${itemId})`);
+         showCustomConfirm(deleteMsg, () => {
+            // --- Deletion Confirmed ---
+            console.log(`[Delete Callback] Confirmed batch ID: ${itemId}`);
+            // Find index again in case data changed between confirm and callback
+            const currentItemIndex = appData.stock.findIndex(item => item.id === itemId);
+            if (currentItemIndex > -1) {
+               // Store for potential undo (only if not used in income for simplicity)
+               if (!usedInIncome) {
+                  recentlyDeletedStockItem = itemToDelete; // Store the cloned item
+               } else {
+                  recentlyDeletedStockItem = null; // Cannot undo if used in sales
+               }
+
+               appData.stock.splice(currentItemIndex, 1); // Remove the item
+               saveDataToLocalStorage();
+
+               // Adjust pagination if the last item on a page was deleted
+               const currentFilteredCount = filterData(appData.stock).length;
+               const totalPages = Math.ceil(currentFilteredCount / rowsPerPage);
+               if (currentPage > totalPages && totalPages > 0) {
+                  currentPage = totalPages;
+               } else if (currentFilteredCount === 0) {
+                  currentPage = 1; // Reset to page 1 if no items left
+               }
+
+               // Refresh UI
+               updateStockSummaryBox();
+               displayStockItems();
+               updateDashboardSummary();
+
+               // Show undo message only if undo is possible
+               if (recentlyDeletedStockItem) {
+                  displayUndoMessage(`Batch of ${itemToDelete.name}`);
+               } else {
+                  showCustomAlert(`Batch of ${itemToDelete.name} deleted. Note: Undo is not available as items with this name were sold.`, "Batch Deleted");
+               }
+
+            } else {
+               console.error(`[Delete Callback] Batch ${itemId} missing AFTER confirm.`);
+               showCustomAlert(`Error: Batch deletion failed unexpectedly.`, "Delete Error");
+               clearUndoState(); // Clear any potential stale undo state
+            }
+         }, "Confirm Batch Deletion");
+      }
+
+      // Display the undo message bar
+      function displayUndoMessage(itemNameInfo) {
+         const undoArea = document.getElementById('undo-area');
+         const undoMessage = document.getElementById('undo-message');
+         const undoButton = document.getElementById('undo-button'); // Button has onclick handler directly
+
+         if (!undoArea || !undoMessage || !undoButton) {
+            console.error("[Undo] Area elements missing!");
+            clearUndoState(); // Ensure no stale state
+            return;
+         }
+
+         clearTimeout(undoTimeout); // Clear any previous timeout
+         console.log(`[Undo] Displaying for: ${itemNameInfo}`);
+         undoMessage.textContent = `${itemNameInfo} deleted.`;
+         undoArea.classList.remove('hidden');
+
+         const UNDO_TIMEOUT_DURATION = 10000; // 10 seconds
+         undoTimeout = setTimeout(() => {
+            console.log(`[Undo] Timeout reached for ${itemNameInfo}.`);
+            clearUndoState(); // Hide bar and clear stored item after timeout
+         }, UNDO_TIMEOUT_DURATION);
+      }
+
+      // Handle clicking the undo button
+      window.handleUndoDelete = function () { // Assign to window for onclick
+         if (!recentlyDeletedStockItem) {
+            console.warn("[Undo] No item stored to undo.");
+            hideUndoArea(); // Hide the bar just in case
+            return;
+         }
+
+         const itemToRestore = { ...recentlyDeletedStockItem }; // Clone again before clearing
+         console.log(`[Undo] Undoing deletion of: ${itemToRestore.name} (Batch ID: ${itemToRestore.id})`);
+
+         // Clear undo state *before* modifying data to prevent race conditions
+         clearUndoState();
+
+         // Add the item back to the stock array
+         appData.stock.push(itemToRestore);
+         saveDataToLocalStorage();
+
+         // Refresh UI
+         updateStockSummaryBox();
+         displayStockItems(); // This will resort and paginate correctly
+         updateDashboardSummary();
+
+         console.log(`[Undo] Restored: ${itemToRestore.name}`);
+         showCustomAlert(`Deletion of ${itemToRestore.name} batch undone.`, "Undo Successful");
+      }
+
+      // Clear the undo state (hide bar, clear stored item, clear timeout)
+      function clearUndoState() {
+         hideUndoArea(); // Hide the UI element
+         clearTimeout(undoTimeout); // Clear the timer
+         if (recentlyDeletedStockItem) {
+            console.log(`[Undo] Clearing stored item: ${recentlyDeletedStockItem.name}`);
+            recentlyDeletedStockItem = null; // Remove reference to the deleted item
+         }
+         undoTimeout = null;
+      }
+
+      // Hide the undo message bar
+      function hideUndoArea() {
+         const undoArea = document.getElementById('undo-area');
+         if (undoArea && !undoArea.classList.contains('hidden')) {
+            console.log("[Undo] Hiding undo area.");
+            undoArea.classList.add('hidden');
+         }
+      }
+
+
+      // Main setup function for the Stock page
+      function setupStockSection() {
+         console.log("Setting up Stock Section...");
+
+         // Set default dates for the Add Stock form
+         const dateBoughtInput = document.getElementById('stock-date-bought');
+         const expiryDateInput = document.getElementById('stock-expiry-date');
+         if (dateBoughtInput && expiryDateInput) {
+            const today = getShortDate();
+            dateBoughtInput.value = today;
+            expiryDateInput.value = calculateExpiryDate(today, 90); // Default 90 days expiry
+
+            // Add listener to auto-update expiry when date bought changes
+            dateBoughtInput.addEventListener('change', () => {
+               const purchaseDate = dateBoughtInput.value;
+               if (purchaseDate) {
+                  expiryDateInput.value = calculateExpiryDate(purchaseDate, 90);
+               }
+            });
+         }
+
+         // Attach form submit listener for adding stock
+         const stockForm = document.getElementById('stock-form');
+         stockForm?.addEventListener('submit', handleAddStockBatch);
+
+         // Attach listener for the filter input
+         const filterInput = document.getElementById('stock-filter');
+         if (filterInput) {
+            filterInput.value = filterText; // Restore filter text if page reloads conceptually
+            filterInput.addEventListener('input', handleFilterChange);
+         }
+
+         // Attach listeners to sortable headers
+         document.querySelectorAll('#stock-table .sortable-header').forEach(header => {
+            header.addEventListener('click', () => {
+               const key = header.getAttribute('data-sort-key');
+               if (key) handleSort(key);
+            });
+         });
+
+         // Setup autocomplete for the add stock form
+         setupStockAutocomplete();
+
+         // Initial display of data
+         updateStockSummaryBox();
+         displayStockItems(); // This handles sorting, filtering, pagination internally
+      }
+
+
+      // --- INITIALIZATION for this page ---
+      document.addEventListener('DOMContentLoaded', () => {
+         console.log("Initializing Stock Management page...");
+         loadDataFromLocalStorage(); // Load all data
+
+         // Setup common UI components
+         setupConfirmModal();
+         setupEditModal();   // Setup the edit modal listeners
+         setupAdjustModal(); // Setup the adjust modal listeners
+
+         // Call the main setup function for THIS section
+         setupStockSection();
+
+         // Update common displays
+         updateLastBackupDisplay();
+
+         // Attach listener for the backup button
+         const saveBackupButton = document.getElementById('save-backup-button');
+         saveBackupButton?.addEventListener('click', handleSaveAndBackup);
+
+         console.log("Stock Management Initialization Complete.");
+      });
+
+   </script>
+
+</body>
+
+</html>
